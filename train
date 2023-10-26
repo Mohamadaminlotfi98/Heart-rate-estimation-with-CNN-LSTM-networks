@@ -1,0 +1,75 @@
+#@title Training loop
+# Define the subject for which you want to read the data
+train_subject = ['subject1','subject2','subject3','subject4','subject5','subject6','subject7','subject8','subject9',
+           'subject10','subject11','subject12','subject13', 'subject14','subject15','subject16','subject17',
+           'subject18','subject19','subject20']
+
+weights_path = 'path/to/weights.pth'
+
+# Load the weights for the model
+if os.path.isfile(weights_path):
+    checkpoint = torch.load(weights_path)
+    model.load_state_dict(checkpoint['state_dict'])
+    print("Model loaded from", weights_path)
+else:
+    print("No model found in", weights_path)
+
+# Define the loss function and optimizer
+criterion = nn.MSELoss()
+optimizer = torch.optim.Adam(model.parameters(), lr=0.005)
+
+
+# Initialize lists to save the training and validation loss values
+train_loss_values = []
+val_loss_values = []
+
+# Initialize the best validation loss
+best_val_loss = float('inf')
+epoch = 0
+
+for i in train_subject:
+    data_generator = load_data([i] , test_size=0.1, batch_size = 100)
+
+    # Train the model
+    for x_batch, y_batch, mode in data_generator:
+        epoch +=1
+        if mode == 'train':
+            x_batch = x_batch.to(device)
+            y_batch = y_batch.to(device)
+            print(x_batch.shape)
+            # Clear the gradients
+            optimizer.zero_grad()
+            # Forward pass
+            outputs = model((x_batch)*256).to(float)
+            # Compute the loss
+            loss = (criterion(outputs, y_batch))
+
+            # Backward pass and optimization
+            loss.backward()
+            optimizer.step()
+            # Print the loss
+            print('Loss:', loss.item())
+            train_loss_values.append(loss.item())
+        else:
+            # Evaluate the model on the validation set
+            with torch.no_grad():
+                x_batch = x_batch.to(device)
+                y_batch = y_batch.to(device)
+                outputs = model(x_batch)
+                val_loss = criterion(outputs, y_batch)
+                print('Validation Loss:', val_loss.item())
+                val_loss_values.append(val_loss.item())
+                # Save the model if the validation loss is the best seen so far
+                if val_loss < best_val_loss:
+                    best_val_loss = val_loss
+                    torch.save({'epoch': epoch, 'state_dict': model.state_dict(),'best_val_loss': best_val_loss,'optimizer' : optimizer.state_dict(),}
+                           , 'path/to/weights.pth')
+plt.figure()
+plt.plot(train_loss_values, label='Training Loss')
+plt.legend()
+plt.show()
+# Plot the validation loss
+plt.figure()
+plt.plot(val_loss_values, label='Validation Loss')
+plt.legend()
+plt.show()
