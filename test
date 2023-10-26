@@ -1,0 +1,40 @@
+# Define the test subjects
+test_subjects = ['subject21','subject22','subject23','subject24']
+
+# Define the directory where the weights are stored
+weights_path = 'path/to/weights.pth'
+
+# Load the weights for the model
+if os.path.isfile(weights_path):
+    weights = torch.load('path/to/weights.pth')["state_dict"]
+    model = HeartRateNet()
+    model.load_state_dict(weights)
+    print("Model loaded from", weights_path)
+else:
+    print("No model found in", weights_path)
+# Define the loss function
+criterion = nn.MSELoss()
+
+# Initialize the test loss values
+test_loss_values = []
+
+# Test the model
+for subject in test_subjects:
+    # Create the data generator for the subject
+    test_data_generator = load_data([subject] ,test_size=5, batch_size = 100)
+    for x_batch, y_batch in test_data_generator:
+        # Move the data to the GPU (if using CUDA)
+        x_batch = x_batch.to(device)
+        y_batch = y_batch.to(device)
+        # Pass the data through the model
+        outputs = model(x_batch)
+        # Compute the loss
+        loss = criterion(outputs, y_batch)
+        # Print the loss value
+        print('Test Loss:', loss.item())
+        test_loss_values.append(loss.item())
+
+# Plot the test loss values
+plt.plot(test_loss_values, label='Test Loss')
+plt.legend()
+plt.show()
