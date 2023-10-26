@@ -1,0 +1,77 @@
+class Heart_rate(data.Dataset):
+  def __init__(self,root):
+    self.root = root
+    self.details = pd.read_excel(root + '/details.xlsx')
+    self.transforms = t.Compose([
+        t.Resize((400,400)),
+        t.ToTensor()
+          ])
+  def __getitem__(self,idx):
+    image_name = self.details.iloc[idx,0]
+    image_label = torch.tensor((self.details.iloc[idx,1]))
+    img = PIL.Image.open(os.path.join(self.root,image_name))
+    img = self.transforms(img)
+    green_channel = img[1,:,:] # take only the green channel
+    return green_channel , image_label
+  def __len__(self):
+    return len(self.details)
+
+def load_data(subject, test_size = 100, batch_size=200):
+    sample = Heart_rate(root='Heart_rate_Estimation/subject24')
+    dataloader = torch.utils.data.DataLoader(sample, batch_size=batch_size, shuffle=False, num_workers=2)
+
+    images, labels = [], []
+    count = 0
+    for img, label in dataloader:
+        images.extend(img[:100])
+        labels.extend(label[:100])
+        count += 100
+        if count >= test_size:
+            break
+    
+    return images, labels
+
+test_subject = 'subject24'
+# Load the model
+# Load the model
+weights = torch.load('path/to/weights.pth')["state_dict"]
+model = HeartRateNet()
+model.load_state_dict(weights)
+model.eval()
+
+
+# Load the first 10 images from the test set
+all_images, all_labels = load_data(test_subject[0], test_size=100)
+
+test_images, test_labels = all_images[:10], all_labels[:10]
+from PIL import Image
+
+test_images_pil = []
+for image in test_images:
+    test_images_pil.append(Image.fromarray(image.numpy()))
+
+test_images_tensor = []
+for image in test_images_pil:
+    test_images_tensor.append(t.ToTensor()(image))
+
+test_images_tensor = torch.stack(test_images_tensor)
+
+test_images_tensor = test_images_tensor.squeeze(dim = 1)
+# Make predictions for the first 10 images
+predictions = model(test_images_tensor)
+
+# Plot the first 10 images with their labels and predictions
+fig, axes = plt.subplots(5, 2, figsize=(20, 20))
+for i, ax in enumerate(axes.flat):
+    ax.imshow(test_images[i].squeeze(), cmap="Greens_r")
+    ax.set_title("True:" + str(test_labels[i].item()) + " Pred:" + str(predictions[i]))
+    ax.axis("off")
+
+plt.show()
+fig, axes = plt.subplots(5, 2, figsize=(10, 20))
+for i, ax in enumerate(axes.flat):
+    ax.imshow(test_images[i].squeeze(), cmap="Greens_r")
+    ax.set_title("True:" + str(test_labels[i]) + " Pred:" + str(predictions[i]))
+    ax.axis("off")
+
+plt.show()
