@@ -1,0 +1,38 @@
+class Heart_rate(data.Dataset):
+  def __init__(self,root):
+    self.root = root
+    self.details = pd.read_excel(root + '/details.xlsx')
+    self.transforms = t.Compose([
+        t.Resize((400,400)),
+        t.ToTensor()
+          ])
+  def __getitem__(self,idx):
+    image_name = self.details.iloc[idx,0]
+    image_label = torch.tensor((self.details.iloc[idx,1]))
+    img = PIL.Image.open(os.path.join(self.root,image_name))
+    img = self.transforms(img)
+    green_channel = img[1,:,:] # take only the green channel
+    return green_channel , image_label
+  def __len__(self):
+    return len(self.details)
+def load_data(subjects, test_size = 0.2, batch_size=200):
+    images = torch.tensor([])
+    labels = torch.tensor([])
+    for subject in subjects:
+        sample = Heart_rate(root='Heart_rate_Estimation/'+ subject)
+        dataloader = torch.utils.data.DataLoader(sample, batch_size=batch_size, shuffle=False, num_workers=2)
+        for img, label in dataloader:
+            images = torch.cat((images, img))
+            labels = torch.cat((labels, label))
+            print(images.shape)
+            print(labels.shape)
+            imag = torch.tensor([])
+            label = torch.tensor([])
+    x_train, x_val, y_train, y_val = train_test_split(images, labels, test_size = test_size)
+    train_size = x_train.shape[0]
+    images = torch.tensor([])
+    labels = torch.tensor([])
+    for i in range(0, train_size - (train_size % batch_size), batch_size):
+        yield x_train[i:i + batch_size], y_train[i:i+batch_size],'train'
+    print( subjects, 'train data returned')
+    yield x_val[0:100], y_val[0:100],'val'
