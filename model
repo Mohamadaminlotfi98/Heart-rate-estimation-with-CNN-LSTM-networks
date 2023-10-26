@@ -1,0 +1,30 @@
+class HeartRateNet(nn.Module):
+    def __init__(self):
+        super(HeartRateNet, self).__init__()
+        
+        self.cnn = nn.Sequential(
+            nn.Conv2d(in_channels=100, out_channels=32, kernel_size=3, stride=1, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2, stride=2),
+            nn.Conv2d(in_channels=32, out_channels=64, kernel_size=3, stride=1, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2, stride=2),
+            nn.Conv2d(in_channels=64, out_channels=128, kernel_size=3, stride=1, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2, stride=2),
+            nn.Flatten()
+        )
+        
+        self.lstm = nn.LSTM(input_size=2500, hidden_size=100, num_layers=3, batch_first=True)
+        
+        self.fc = nn.Linear(in_features=100, out_features=100)
+
+    def forward(self, x):
+        x = self.cnn(x)
+        x = x.unsqueeze(0) # add a batch dimension
+        x, _ = self.lstm(x) # only the last hidden state is of interest, _ is a tuple of hidden and cell states
+        x = x.squeeze(0) # remove the batch dimension
+        x = self.fc(x)
+        x = torch.sigmoid(x)
+        x = torch.clamp(x,50,130)
+        return x
